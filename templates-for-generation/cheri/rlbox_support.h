@@ -6,14 +6,30 @@
 typedef WasmModule* (*new_wasm_module_t)(i32 argc, Handle argv);
 typedef void (*destroy_wasm_module_t)(WasmModule* ctx);
 
+
+WasmModule* new_wasm_module(i32 argc, Handle argv);
+void destroy_wasm_module(WasmModule* ctx);
+
+
+
 typedef struct mswasm_sandbox_funcs_t {
-  new_wasm_module_t destroy_mswasm_sandbox;
-  destroy_wasm_module_t create_mswasm_sandbox;
+  new_wasm_module_t create_mswasm_sandbox;
+  destroy_wasm_module_t destroy_mswasm_sandbox;
   // add_callback_t add_mswasm_callback;
   // remove_callback_t remove_mswasm_callback;
 } mswasm_sandbox_funcs_t;
 
-
+mswasm_sandbox_funcs_t get_mswasm_sandbox_info() {
+  mswasm_sandbox_funcs_t ret;
+  //ret.wasm_rt_sys_init = &wasm_rt_sys_init;
+  ret.create_mswasm_sandbox = &new_wasm_module; // rwasm naming convention
+  ret.destroy_mswasm_sandbox = &destroy_wasm_module; // rwasm naming convention
+  // ret.lookup_wasm2c_nonfunc_export = &lookup_wasm2c_nonfunc_export;
+  // ret.lookup_wasm2c_func_index = &lookup_wasm2c_func_index;
+  // ret.add_wasm2c_callback = &add_wasm2c_callback;
+  // ret.remove_wasm2c_callback = &remove_wasm2c_callback;
+  return ret;
+}
 
 
 

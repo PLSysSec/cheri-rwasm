@@ -91,7 +91,7 @@ static_assert((sizeof(Handle) == 16), "On cheri machines, pointer size should be
 static_assert((sizeof(Handle) == 8), "On non-cheri machines, pointer size should be 8 bytes (sorry 32-bit machines)");
 
 // Dynamically fail if we run mswasm-cheri on a non-mswasm machine
-// TODO: I shoul probably make a config option to fail statically or dynamically
+// TODO: I should probably make a config option to fail statically or dynamically
 u64 cheri_offset_get(Handle h) {
     assert(false); // 
 }

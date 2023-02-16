@@ -97,11 +97,12 @@ fn print_elems(
         .iter()
         .map(|e| e.init.len() + get_elem_offset(e).unwrap())
         .max();
-
-    let call_table_alloc = match max_elem {
-        Some(max_e) => format!("calloc({}, sizeof(Handle))", max_e + 1),
-        None => "calloc(1, sizeof(Handle))".to_string(),
-    };
+    
+    // Note: Hardcode max number of callbacks to 128
+    if let Some(max_e) = max_elem {
+        assert!(max_e <= 128);
+    }
+    let call_table_alloc = "calloc(128, sizeof(Handle))".to_string();
 
     let elem_inits = match max_elem {
         Some(max_e) => elem
