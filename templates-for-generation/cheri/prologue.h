@@ -48,7 +48,10 @@ typedef void* Handle;
 
 
 // typedef void* WasiCtx; 
-
+typedef struct CallTableEntry {
+   i32     type_idx;
+   Handle  func_ptr;
+} CallTableEntry; 
 
 // remove reliance on stdbool.h
 const i32 true = 1;
@@ -181,10 +184,30 @@ typedef enum {
 
 // Since the indirect_call_table is a capability, we can elide the usual bounds check on it
 // currently just checks that the indirect_call_table is non-null
-// TODO: add func type check back in
-#define CALL_INDIRECT(table, t, ft, x, ...)          \
-       ((t)table[x])(ctx, __VA_ARGS__)
+// TODO: void vs non-void?
+#define CALL_INDIRECT_VOID(table, t, ft, x, ...)          \
+       if LIKELY(table.func_type_idx == ft) {\
+       ((t)table[x])(ctx, __VA_ARGS__)\
+       }\
+       else {\
+       assert(false && "Indirect call with wrong func idx!");\
+       }
 
+#define CALL_INDIRECT_RES(res, table, t, ft, x, ...)          \
+       if LIKELY(table.func_type_idx == ft) {\
+       res = ((t)table[x])(ctx, __VA_ARGS__)\
+       }\
+       else {\
+       assert(false && "Indirect call with wrong func idx!");\
+       }
+
+#define CALL_INDIRECT_RES_AND_CAST(res, cast, table, t, ft, x, ...)          \
+       if LIKELY(table.func_type_idx == ft) {\
+       res = cast((t)table[x])(ctx, __VA_ARGS__)\
+       }\
+       else {\
+       assert(false && "Indirect call with wrong func idx!");\
+       }
 // #define RANGE_CHECK(mem, offset, len) \
 //   if (UNLIKELY(offset + (uint64_t)len > mem->size)) TRAP(OOB)
 

@@ -75,7 +75,7 @@ fn print_elem(
         .enumerate()
         .map(|(i, f)| {
             format!(
-                "{}->indirect_call_table[{}] = &__rwasm_{}_{};",
+                "{}->indirect_call_table[{}] = {{f, &__rwasm_{}_{}}};",
                 ctx_name,
                 offset + i,
                 m.names.functions[f],
@@ -102,7 +102,7 @@ fn print_elems(
     if let Some(max_e) = max_elem {
         assert!(max_e <= 128);
     }
-    let call_table_alloc = "calloc(128, sizeof(Handle))".to_string();
+    let call_table_alloc = "calloc(128, sizeof(CallTableEntry))".to_string();
 
     let elem_inits = match max_elem {
         Some(max_e) => elem
@@ -261,7 +261,7 @@ fn print_export(
 fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<String> {
     let wasm_module = format!(
         "typedef struct WasmModule {{
-            Handle* indirect_call_table;
+            CallTableEntry* indirect_call_table;
             void* mem;
             union TaggedVal* globals;
             Handle* global_handles;

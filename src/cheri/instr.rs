@@ -872,11 +872,11 @@ fn print_instr(
             let call_code =
                 match (num_val_ret, num_handle_ret) {
                     (0, 0) => format!(
-                        "CALL_INDIRECT(ctx->indirect_call_table, {}, {}, {}, {});",
+                        "CALL_INDIRECT_VOID(ctx->indirect_call_table, {}, {}, {}, {});",
                         fn_ptr_ty, typ_idx.0, call_target, args
                     ),
                     (0, 1) => format!(
-                        "{} = CALL_INDIRECT(ctx->indirect_call_table, {}, {}, {}, {});",
+                        "CALL_INDIRECT_RES({}, ctx->indirect_call_table, {}, {}, {}, {});",
                         push_handle!(),
                         fn_ptr_ty,
                         typ_idx.0,
@@ -885,7 +885,7 @@ fn print_instr(
                     ),
                     (1, 0) => {
                         format!(
-                        "{} = from_{}(CALL_INDIRECT(ctx->indirect_call_table, {}, {}, {}, {}));",
+                        "(CALL_INDIRECT_RES_AND_CAST({}, {}, ctx->indirect_call_table, {}, {}, {}, {}));",
                         push!(), typ_expected.to.0[0], fn_ptr_ty, typ_idx.0, call_target, args
                     )
                     }
