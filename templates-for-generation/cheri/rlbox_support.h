@@ -5,18 +5,22 @@
 
 typedef WasmModule* (*new_wasm_module_t)(i32 argc, Handle argv);
 typedef void (*destroy_wasm_module_t)(WasmModule* ctx);
-typedef void (*remove_callback_t)(WasmModule* ctx, u32 callback_idx);
+typedef u32 (*lookup_func_index_t)(WasmModule* ctx, u32 param_count, u32 result_count, Handle types);
 typedef u32 (*add_callback_t)(WasmModule* ctx, u32 func_type_idx, Handle func_ptr);
+typedef void (*remove_callback_t)(WasmModule* ctx, u32 callback_idx);
+
 
 WasmModule* new_wasm_module(i32 argc, Handle argv);
 void destroy_wasm_module(WasmModule* ctx);
-void remove_mswasm_callback(WasmModule* ctx, u32 callback_idx);
+u32 lookup_func_index(WasmModule* ctx, u32 param_count, u32 result_count, Handle types);
 u32 add_mswasm_callback(WasmModule* ctx, u32 func_type_idx, Handle func_ptr);
+void remove_mswasm_callback(WasmModule* ctx, u32 callback_idx);
 
 
 typedef struct mswasm_sandbox_funcs_t {
   new_wasm_module_t create_mswasm_sandbox;
   destroy_wasm_module_t destroy_mswasm_sandbox;
+  lookup_func_index_t lookup_mswasm_func_index;
   add_callback_t add_mswasm_callback;
   remove_callback_t remove_mswasm_callback;
 } mswasm_sandbox_funcs_t;
@@ -27,7 +31,7 @@ mswasm_sandbox_funcs_t get_mswasm_sandbox_info() {
   ret.create_mswasm_sandbox = &new_wasm_module; // rwasm naming convention
   ret.destroy_mswasm_sandbox = &destroy_wasm_module; // rwasm naming convention
   // ret.lookup_wasm2c_nonfunc_export = &lookup_wasm2c_nonfunc_export;
-  // ret.lookup_wasm2c_func_index = &lookup_wasm2c_func_index;
+  ret.lookup_mswasm_func_index = &lookup_func_index;
   ret.add_mswasm_callback = &add_mswasm_callback;
   ret.remove_mswasm_callback = &remove_mswasm_callback;
   return ret;
@@ -65,3 +69,8 @@ u32 add_mswasm_callback(WasmModule* ctx, u32 func_type_idx, Handle func_ptr){
 //   // remove_callback_t remove_mswasm_callback;
 // } mswasm_sandbox_funcs_t;
 
+static u32 lookup_wasm2c_func_index(void* sbx_ptr, u32 param_count, u32 result_count, Handle types) {
+  assert(false && "unimplemented");
+  // wasm2c_sandbox_t* const sbx = (wasm2c_sandbox_t* const) sbx_ptr;
+  // return wasm_rt_register_func_type(&sbx->func_type_structs, &sbx->func_type_count, param_count, result_count, types);
+}
