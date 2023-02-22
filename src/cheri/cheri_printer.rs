@@ -75,7 +75,11 @@ fn print_elem(
         .enumerate()
         .map(|(i, f)| {
             format!(
-                "{}->indirect_call_table[{}] = {{f, &__rwasm_{}_{}}};",
+                "{}->indirect_call_table[{}].type_idx = {:?};
+                 {}->indirect_call_table[{}].func_ptr = &__rwasm_{}_{};",
+                ctx_name,
+                offset + i,
+                f.0, // TODO: is this actually the type index?
                 ctx_name,
                 offset + i,
                 m.names.functions[f],

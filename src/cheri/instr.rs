@@ -885,7 +885,7 @@ fn print_instr(
                     ),
                     (1, 0) => {
                         format!(
-                        "(CALL_INDIRECT_RES_AND_CAST({}, {}, ctx->indirect_call_table, {}, {}, {}, {}));",
+                        "CALL_INDIRECT_RES_AND_CAST({}, {}, ctx->indirect_call_table, {}, {}, {}, {});",
                         push!(), typ_expected.to.0[0], fn_ptr_ty, typ_idx.0, call_target, args
                     )
                     }

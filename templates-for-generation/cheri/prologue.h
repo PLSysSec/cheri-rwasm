@@ -186,24 +186,24 @@ typedef enum {
 // currently just checks that the indirect_call_table is non-null
 // TODO: void vs non-void?
 #define CALL_INDIRECT_VOID(table, t, ft, x, ...)          \
-       if LIKELY(table.func_type_idx == ft) {\
-       ((t)table[x])(ctx, __VA_ARGS__)\
+       if (LIKELY(table->type_idx == ft)) {\
+       ((t)table[x].func_ptr)(ctx, __VA_ARGS__);\
        }\
        else {\
        assert(false && "Indirect call with wrong func idx!");\
        }
 
 #define CALL_INDIRECT_RES(res, table, t, ft, x, ...)          \
-       if LIKELY(table.func_type_idx == ft) {\
-       res = ((t)table[x])(ctx, __VA_ARGS__)\
+       if (LIKELY(table->type_idx == ft)) {\
+       res = ((t)table[x].func_ptr)(ctx, __VA_ARGS__)\
        }\
        else {\
        assert(false && "Indirect call with wrong func idx!");\
        }
 
 #define CALL_INDIRECT_RES_AND_CAST(res, cast, table, t, ft, x, ...)          \
-       if LIKELY(table.func_type_idx == ft) {\
-       res = cast((t)table[x])(ctx, __VA_ARGS__)\
+       if (LIKELY(table->type_idx == ft)) {\
+       res = from_##cast(((t)table[x].func_ptr)(ctx, __VA_ARGS__));\
        }\
        else {\
        assert(false && "Indirect call with wrong func idx!");\
