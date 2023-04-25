@@ -69,8 +69,85 @@ u32 add_mswasm_callback(WasmModule* ctx, u32 func_type_idx, Handle func_ptr){
 //   // remove_callback_t remove_mswasm_callback;
 // } mswasm_sandbox_funcs_t;
 
-static u32 lookup_wasm2c_func_index(void* sbx_ptr, u32 param_count, u32 result_count, Handle types) {
-  assert(false && "unimplemented");
-  // wasm2c_sandbox_t* const sbx = (wasm2c_sandbox_t* const) sbx_ptr;
-  // return wasm_rt_register_func_type(&sbx->func_type_structs, &sbx->func_type_count, param_count, result_count, types);
+
+//}
+
+FuncType mswasm_create_func_type(uint32_t from_count, 
+                                 uint32_t to_count, 
+                                 mswasm_type_t* types){
+      FuncType func_type;
+    
+    // 1) allocate space for parameters
+    func_type.from_count = from_count;
+    if (func_type.from_count != 0) {
+      func_type.from = malloc(from_count * sizeof(mswasm_type_t));
+      assert(func_type.from != 0);
+    } else {
+      func_type.from = 0;
+    }
+
+    // 2) allocate space for result
+    func_type.to_count = to_count;
+    if (func_type.to_count != 0) {
+      func_type.to = malloc(to_count * sizeof(mswasm_type_t));
+      assert(func_type.to != 0);
+    } else {
+      func_type.to = 0;
+    }
+
+    // 3) copy in parameters and result
+    uint32_t i;
+    for (i = 0; i < from_count; ++i)
+      func_type.from[i] = types[i];
+    for (i = 0; i < to_count; ++i)
+      func_type.to[i] = types[(uint64_t)(from_count) + i];
+
+
+    return func_type;
+}
+
+
+static bool func_types_are_equal(FuncType* a, FuncType* b) {
+  if (a->from_count != b->from_count || a->to_count != b->to_count)
+    return 0;
+  uint32_t i;
+  for (i = 0; i < a->from_count; ++i)
+    if (a->from[i] != b->from[i])
+      return 0;
+  for (i = 0; i < a->to_count; ++i)
+    if (a->to[i] != b->to[i])
+      return 0;
+  return 1;
+}
+
+uint32_t mswasm_register_func_type(WasmModule* ctx, FuncType func_type) {
+
+  // 1) scan func types table, if equal, and return index.
+  for (int i = 0; i < ctx->func_type_count; ++i) {
+    FuncType* func_types = ctx->func_type_table;
+    if (func_types_are_equal(&func_types[i], &func_type)) {
+      if (func_type.from) {
+        free(func_type.from);
+      }
+      if (func_type.to) {
+        free(func_type.to);
+      }
+      return i + 1;
+    }
+  }
+  // 2) add to func type table if it is not already there
+  uint32_t idx = ctx->func_type_count++;
+  // realloc works fine even if *p_func_type_structs is null
+  ctx->func_type_table = realloc(ctx->func_type_table,
+                                 ctx->func_type_count * sizeof(FuncType));
+  ctx->func_type_table[idx] = func_type;
+  return idx + 1;
+}
+
+
+u32 lookup_func_index(WasmModule* ctx_ptr, u32 param_count, u32 result_count, Handle types) {
+  //assert(false && "unimplemented");
+  WasmModule* const ctx = (WasmModule* const) ctx_ptr;
+  FuncType func_type = mswasm_create_func_type(param_count, result_count, types);
+  return mswasm_register_func_type(ctx, func_type);
 }

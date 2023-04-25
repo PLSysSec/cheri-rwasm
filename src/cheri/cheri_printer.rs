@@ -193,6 +193,37 @@ fn print_data(_self_name: &str, d: &wasm::syntax::Data, opts: &CmdLineOpts) -> M
     ))
 }
 
+fn format_type_vec(func_type: &wasm::syntax::FuncType) -> String {
+    // format!("{:?}", func_type.from.0)
+    let mut comma_separated = String::new();
+
+    for ty in func_type.from.0.iter() {
+        comma_separated.push_str(&format!("MSWASM_{:?}", ty).to_ascii_uppercase() );
+        comma_separated.push_str(", ");
+    }
+
+    for ty in func_type.to.0.iter() {
+        comma_separated.push_str(&format!("MSWASM_{:?}", ty).to_ascii_uppercase());
+        comma_separated.push_str(", ");
+    }
+
+    comma_separated = "{".to_owned() + &comma_separated + " }";
+    return comma_separated;
+}
+
+fn print_func_type(ctx_name: &str, func_type: &wasm::syntax::FuncType) -> Maybe<String> {
+    Ok(format!(
+        "mswasm_register_func_type({}, mswasm_create_func_type({}, {}, &(mswasm_type_t[{}]){}));",
+        ctx_name,
+        func_type.from.0.len(),
+        func_type.to.0.len(),
+        func_type.from.0.len() +
+        func_type.to.0.len(),
+        format_type_vec(func_type),
+    ))
+}
+
+
 fn print_export(
     m: &wasm::syntax::Module,
     e: &wasm::syntax::Export,
@@ -266,13 +297,15 @@ fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) 
     let wasm_module = format!(
         "typedef struct WasmModule {{
             CallTableEntry* indirect_call_table;
+            FuncType* func_type_table;
+            u64 func_type_count;
             void* mem;
             union TaggedVal* globals;
             Handle* global_handles;
             {counting_extensions}{wasi_context}
          }} WasmModule;",
         wasi_context = if opts.generate_wasi_executable {
-            "WasiCtx* wasi_ctx;" // TODO: Figure out how to link cheri-C code against WASI
+            "WasiCtx* wasi_ctx;" 
         } else {
             ""
         },
@@ -307,7 +340,7 @@ fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) 
 
 pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
     let wasm::syntax::Module {
-        types: _, // Not used for printing
+        types, // Not used for printing
         funcs,
         tables: _, // Not used for printing
         mems: _,   // Handled internally by auxiliary functions
@@ -334,6 +367,8 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         WasmModule* new_wasm_module(i32 argc, Handle argv) {{
             WasmModule* ctx = rwasm_alloc(sizeof(WasmModule));
             ctx->indirect_call_table = NULL;
+            ctx->func_type_table = NULL;
+            ctx->func_type_count = 0;
             ctx->mem = NULL;
             ctx->globals = calloc({num_globals}, sizeof(TaggedVal));
             ctx->global_handles = calloc({num_globals}, sizeof(Handle));
@@ -341,6 +376,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
             {printed_globals}
             {printed_elems}
             {printed_data_prefix}{printed_data}
+            {printed_func_types}
             return ctx;
          }}\n",
         context = if opts.generate_wasi_executable {
@@ -403,6 +439,11 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         printed_data = data
             .iter()
             .map(|d| print_data("ctx", d, opts))
+            .collect::<Maybe<Vec<_>>>()?
+            .join("\n"),
+        printed_func_types = types
+            .iter()
+            .map(|ty| print_func_type("ctx", ty))
             .collect::<Maybe<Vec<_>>>()?
             .join("\n"),
     );

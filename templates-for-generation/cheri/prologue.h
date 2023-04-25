@@ -47,13 +47,38 @@ typedef double f64;
 typedef void* Handle; 
 
 
-// typedef void* WasiCtx; 
+typedef enum {
+  MSWASM_I32,
+  MSWASM_I64,
+  MSWASM_F32,
+  MSWASM_F64,
+  MSWASM_HANDLE
+} mswasm_type_t;
+
 typedef struct CallTableEntry {
    i32     type_idx;
    Handle  func_ptr;
 } CallTableEntry; 
 
+typedef struct FuncType {
+  mswasm_type_t* from;
+  mswasm_type_t* to;
+  u32 from_count;
+  u32 to_count;
+} FuncType; 
+
+
+/*
+typedef struct wasm_func_type_t {
+  wasm_rt_type_t* params;
+  wasm_rt_type_t* results;
+  uint32_t param_count;
+  uint32_t result_count;
+} wasm_func_type_t;
+*/
+
 // remove reliance on stdbool.h
+typedef int bool;
 const i32 true = 1;
 const i32 false = 0;
 
