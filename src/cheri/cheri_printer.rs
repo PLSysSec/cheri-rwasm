@@ -101,7 +101,7 @@ fn print_elems(
         .iter()
         .map(|e| e.init.len() + get_elem_offset(e).unwrap())
         .max();
-    
+
     // Note: Hardcode max number of callbacks to 128
     if let Some(max_e) = max_elem {
         assert!(max_e <= 128);
@@ -198,7 +198,7 @@ fn format_type_vec(func_type: &wasm::syntax::FuncType) -> String {
     let mut comma_separated = String::new();
 
     for ty in func_type.from.0.iter() {
-        comma_separated.push_str(&format!("MSWASM_{:?}", ty).to_ascii_uppercase() );
+        comma_separated.push_str(&format!("MSWASM_{:?}", ty).to_ascii_uppercase());
         comma_separated.push_str(", ");
     }
 
@@ -217,12 +217,10 @@ fn print_func_type(ctx_name: &str, func_type: &wasm::syntax::FuncType) -> Maybe<
         ctx_name,
         func_type.from.0.len(),
         func_type.to.0.len(),
-        func_type.from.0.len() +
-        func_type.to.0.len(),
+        func_type.from.0.len() + func_type.to.0.len(),
         format_type_vec(func_type),
     ))
 }
-
 
 fn print_export(
     m: &wasm::syntax::Module,
@@ -305,7 +303,7 @@ fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) 
             {counting_extensions}{wasi_context}
          }} WasmModule;",
         wasi_context = if opts.generate_wasi_executable {
-            "WasiCtx* wasi_ctx;" 
+            "WasiCtx* wasi_ctx;"
         } else {
             ""
         },
