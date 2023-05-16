@@ -2536,6 +2536,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         imports: _, // TODO: Will we be supporting this?
         exports,
         names: _, // Not used for printing
+        linking: _,
     } = m;
 
     let mut generated: String = print_generated_code_prefix(m, opts)?;

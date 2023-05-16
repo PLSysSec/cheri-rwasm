@@ -349,6 +349,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         imports: _, // TODO: Will we be supporting this?
         exports,
         names: _, // Not used for printing
+        linking,
     } = m;
 
     let mut generated: String =

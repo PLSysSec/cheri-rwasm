@@ -73,6 +73,15 @@ pub mod syntax {
             Mem(MemType),
             Global(GlobalType),
         }
+
+        // #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+        // pub enum Symbol {
+        //     Func(FuncIdx, Name),
+        //     Global(GlobalIdx, Name),
+        //     Event(u32, Name),
+        //     Data(u32, u32, u32, Name), // segment, offset, size
+        //     Section(u32), // index
+        // }
     }
 
     pub mod index {
@@ -80,16 +89,22 @@ pub mod syntax {
         pub struct TypeIdx(pub u32);
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub struct FuncIdx(pub u32);
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub struct TableIdx(pub u32);
         #[derive(Copy, Clone, Debug)]
         pub struct MemIdx(pub u32);
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub struct GlobalIdx(pub u32);
         #[derive(Copy, Clone, Debug)]
         pub struct LocalIdx(pub u32);
         #[derive(Copy, Clone, Debug)]
         pub struct LabelIdx(pub u32);
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        pub struct SymbolIdx(pub u32);
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        pub struct EventIdx(pub u32);
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        pub struct SectionIdx(pub u32);
     }
 
     pub mod instructions {
@@ -389,12 +404,27 @@ pub mod syntax {
             pub imports: Vec<Import>,
             pub exports: Vec<Export>,
             pub names: Names, // non-standard custom section that appears in WASI
+            pub linking: LinkingInfo, // non-standard custom section that appears when you compile to library
         }
 
+        #[derive(Debug)]
         pub struct Names {
             pub module: Option<Name>,
             pub functions: std::collections::HashMap<FuncIdx, Name>,
             pub locals: std::collections::HashMap<FuncIdx, Vec<Name>>,
+        }
+
+        // tossing away some info here
+        // https://github.com/WebAssembly/wabt/blob/713becedfe45e7b7a993d7efb6fd2994f064b234/src/binary-reader.cc#L1819
+        #[derive(Debug)]
+        pub struct LinkingInfo {
+            pub module: Option<Name>,
+            pub functions: std::collections::HashMap<FuncIdx, Name>,
+            pub globals: std::collections::HashMap<GlobalIdx, Name>,
+            pub events: std::collections::HashMap<EventIdx, Name>,
+            pub data: Vec<(Name, Data)>,
+            pub sections: Vec<SectionIdx>,
+            pub tables: std::collections::HashMap<TableIdx, Name>,
         }
 
         pub enum FuncInternals {
@@ -426,11 +456,12 @@ pub mod syntax {
             pub init: Vec<FuncIdx>,
         }
 
+        #[derive(Debug)]
         pub struct MSWasmInitHandle {
             pub offset: u32,
             pub size: u32,
         }
-
+        #[derive(Debug)]
         pub struct Data {
             pub data: MemIdx,
             pub offset: Expr,

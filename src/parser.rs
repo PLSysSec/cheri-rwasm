@@ -645,6 +645,8 @@ generate! { memidx -> MemIdx = MemIdx(run!(u32)) }
 generate! { globalidx -> GlobalIdx = GlobalIdx(run!(u32)) }
 generate! { localidx -> LocalIdx = LocalIdx(run!(u32)) }
 generate! { labelidx -> LabelIdx = LabelIdx(run!(u32)) }
+generate! { eventidx -> EventIdx = EventIdx(run!(u32)) }
+generate! { sectionidx -> SectionIdx = SectionIdx(run!(u32)) }
 
 macro_rules! section {
     ($n:literal, $name:ident -> Option<$ty:ty> = $body:expr) => {
@@ -843,6 +845,109 @@ generate! { names -> Names = {
     names
 }}
 
+generate! { linking -> LinkingInfo = {
+    // Reference: https://github.com/WebAssembly/wabt/blob/713becedfe45e7b7a993d7efb6fd2994f064b234/src/binary-reader.cc#L1819
+    // This is a custom section used in WASI libraries
+    let mut linking = LinkingInfo {
+        module: None,
+        functions: HashMap::new(),
+        globals: HashMap::new(),
+        events: HashMap::new(),
+        data: Vec::new(),
+        sections: Vec::new(),
+        tables: HashMap::new(),
+    };
+    /*
+        version - u32
+        type - u32
+        subsection size - offset (u32?)
+    */
+    let _version = run!(u32); // TODO: use this
+    // https://github.com/WebAssembly/wabt/blob/297e6593288ff8b3db1bfc94ee59cb9b42d962ef/include/wabt/common.h#L296
+    let linking_type = run!(u32); //   SegmentInfo = 5, InitFunctions = 6, ComdatInfo = 7, SymbolTable = 8,
+
+    // currently only support symboltables in linking info
+    if linking_type != 8 {
+        unimplemented!();
+    }
+    let _subsection_size = run!(u32); // TODO: use this
+
+    let symbol_count = run!(u32);
+
+    /*
+    https://github.com/WebAssembly/wabt/blob/297e6593288ff8b3db1bfc94ee59cb9b42d962ef/include/wabt/common.h#L310
+    enum class SymbolType {
+    Function = 0,
+    Data = 1,
+    Global = 2,
+    Section = 3,
+    Tag = 4,
+    Table = 5,
+    };
+    */
+    // println!("symbol count = {:?}", symbol_count);
+    for _ in 0..symbol_count {
+        let sym_type = run!(u32); // match on this
+        let sym_flags = run!(u32); // TODO: use this
+        // 0x10 flag not set and 0x40 set = has name
+        // println!("sym flags: {:x}", sym_flags);
+        match sym_type {
+            0 => { // Function
+                let index = run!(funcidx);
+                let name =
+                if (sym_flags & 0x10 == 0) || (sym_flags & 0x40 != 0) {
+                run!(name)
+                }
+                else{"".to_string()};
+                linking.functions.insert(index, name);
+            }
+            1 => { // Data
+                // let name = run!(name);
+                // let segment = run!(u32);
+                // let offset = run!(u32);
+                // let size = run!(u32);
+                unimplemented!()
+                // linking.data.append(name, Data{segment, offset, size});
+            }
+            2 => { // Global
+                let index = run!(globalidx);
+                let name =
+                if (sym_flags & 0x10 == 0) || (sym_flags & 0x40 != 0) {
+                run!(name)
+                }
+                else{"".to_string()};
+                linking.globals.insert(index, name);
+            }
+            3 => { // Section
+                let index = run!(sectionidx);
+                linking.sections.push(index);
+            }
+            4 => { // Tag
+                let index = run!(eventidx);
+                let name =
+                if (sym_flags & 0x10 == 0) || (sym_flags & 0x40 != 0) {
+                run!(name)
+                }
+                else{"".to_string()};
+                linking.events.insert(index, name);
+            }
+            5 => { // Table
+                let index = run!(tableidx);
+                let name =
+                if (sym_flags & 0x10 == 0) || (sym_flags & 0x40 != 0) {
+                run!(name)
+                }
+                else{"".to_string()};
+                linking.tables.insert(index, name);
+            }
+            _ => {
+                unimplemented!("Unknown symbol type")
+            }
+        }
+    }
+    linking
+}}
+
 generate! { module -> Module = {
     // magic
     run!(expect_byte(0x00));
@@ -913,6 +1018,28 @@ generate! { module -> Module = {
         }
     };
 
+    let linking = {
+        if let Some(data) = custom.get("linking") {
+            let mut data: &[u8] = data;
+            let names = run_manual!(linking(data));
+            if data.len() == 0 {
+                names
+            } else {
+                err!("Unused bytes in the custom linking section")
+            }
+        } else {
+            LinkingInfo {
+                module: None,
+                functions: HashMap::new(),
+                globals: HashMap::new(),
+                events: HashMap::new(),
+                data: Vec::new(),
+                sections: Vec::new(),
+                tables: HashMap::new(),
+            }
+        }
+    };
+
     // Merging the `funcsec` and the `codesec`
     //
     // This is one of the weirdest design decisions of the binary
@@ -952,7 +1079,7 @@ generate! { module -> Module = {
     let funcs = imported_funcs.into_iter().chain(internal_funcs.into_iter()).collect();
 
     // .. and we finally have a module
-    Module { types, funcs, tables, mems, globals, elem, data, start, imports, exports, names }
+    Module { types, funcs, tables, mems, globals, elem, data, start, imports, exports, names, linking }
 }}
 
 pub fn parse(opts: ParserOpts, inp: &[u8]) -> Maybe<Module> {
