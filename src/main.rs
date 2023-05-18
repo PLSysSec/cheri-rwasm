@@ -41,12 +41,15 @@ pub struct CmdLineOpts {
     /// Enable debugging (can be used multiple times)
     #[clap(short, parse(from_occurrences))]
     debug: u8,
-    /// Generate a WASI binary
-    #[clap(short = 'w', long = "wasi-executable")]
-    generate_wasi_executable: bool,
-    /// Make the WASI-linked binary a library instead (implies -w)
-    #[clap(long = "wasi-library")]
-    generate_as_wasi_library: bool,
+    /// Generate a WASI binary/library
+    #[clap(short = 'w', long = "wasi")]
+    generate_wasi_module: bool,
+    /// Generate a library (rather than a binary)
+    #[clap(long = "library")]
+    generate_library: bool,
+    // /// Make the WASI-linked binary a library instead (implies -w)
+    // #[clap(long = "wasi-library")]
+    // generate_as_wasi_library: bool,
     /// Add function level tracing
     #[clap(long)]
     function_tracing: bool,
@@ -147,12 +150,12 @@ fn main() -> Maybe<()> {
             "Cannot use --inline-indirect-calls and --type-based-indirect-calls at same time"
         ));
     }
-    if opts.no_std_library && opts.generate_wasi_executable {
-        return Err(eyre!("WASI executable with no_std library unsupported."));
+    if opts.no_std_library && opts.generate_wasi_module {
+        return Err(eyre!("WASI module with no_std library unsupported."));
     }
-    if opts.generate_as_wasi_library {
-        opts.generate_wasi_executable = true;
-    }
+    // if opts.generate_as_wasi_library {
+    //     opts.generate_wasi_executable = true;
+    // }
     if opts.ms_wasm_no_tags {
         opts.ms_wasm = true;
     }

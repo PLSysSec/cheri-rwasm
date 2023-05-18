@@ -18,8 +18,8 @@ fn print_instr(
 ) -> Maybe<String> {
     let f = &m.funcs[fn_id.0 as usize];
 
-    dbgprintln!(1, "Working on instruction {:?}", i);
-    dbgprintln!(1, "\t{:?}", ps);
+    println!("Working on instruction {:?}", i);
+    println!("\t{:?}", ps);
 
     macro_rules! stack_op {
         // ($from:expr => $to:expr, $handle_from:expr => $handle_to:expr) => {{

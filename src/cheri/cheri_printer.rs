@@ -76,14 +76,13 @@ fn print_elem(
         .map(|(i, f)| {
             format!(
                 "{}->indirect_call_table[{}].type_idx = {:?};
-                 {}->indirect_call_table[{}].func_ptr = &__rwasm_{}_{};",
+                 {}->indirect_call_table[{}].func_ptr = &{};",
                 ctx_name,
                 offset + i,
                 f.0, // TODO: is this actually the type index?
                 ctx_name,
                 offset + i,
-                m.names.functions[f],
-                f.0,
+                format_func_name(m, f),
             )
         })
         .collect::<Vec<_>>()
@@ -239,7 +238,7 @@ fn print_export(
             Ok(format!(
                 "{} = {};",
                 print_fn_ptr(m, format!("__{}", &e.name), fn_idx)?,
-                format!("__rwasm_{}_{}", m.names.functions[&fn_idx], fn_idx.0),
+                format_func_name(m, &fn_idx),
                 //fn_idx.0
             ))
 
@@ -302,7 +301,7 @@ fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) 
             Handle* global_handles;
             {counting_extensions}{wasi_context}
          }} WasmModule;",
-        wasi_context = if opts.generate_wasi_executable {
+        wasi_context = if opts.generate_wasi_module {
             "WasiCtx* wasi_ctx;"
         } else {
             ""
@@ -336,6 +335,17 @@ fn print_generated_header_prefix(_m: &wasm::syntax::Module, opts: &CmdLineOpts) 
     ))
 }
 
+fn format_func_name(m: &wasm::syntax::Module, fn_idx: &wasm::syntax::FuncIdx) -> String {
+    if m.names.functions.contains_key(fn_idx) {
+        // executable
+        format!("__rwasm_{}_{}", m.names.functions[fn_idx], fn_idx.0)
+    } else {
+        // library
+        assert!(m.linking.functions.contains_key(fn_idx));
+        format!("__rwasm_{}_{}", m.linking.functions[fn_idx], fn_idx.0)
+    }
+}
+
 pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
     let wasm::syntax::Module {
         types, // Not used for printing
@@ -345,13 +355,18 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         globals,
         elem,
         data,
-        start: _,   // TODO: Use this to create a start function
-        imports: _, // TODO: Will we be supporting this?
+        start: _, // TODO: Use this to create a start function
+        imports,  // TODO: Will we be supporting this?
         exports,
         names: _, // Not used for printing
         linking,
     } = m;
-
+    println!("globals = {:?}", globals);
+    println!("elem = {:?}", elem);
+    println!("data = {:?}", data);
+    println!("imports = {:?}", imports);
+    println!("exports = {:?}", exports);
+    println!("linking = {:?}", linking);
     let mut generated: String =
         include_str!("../../templates-for-generation/cheri/prologue.c").to_string();
     let mut generated_header = print_generated_header_prefix(m, opts)?;
@@ -378,7 +393,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
             {printed_func_types}
             return ctx;
          }}\n",
-        context = if opts.generate_wasi_executable {
+        context = if opts.generate_wasi_module {
             "ctx->wasi_ctx = new_wasi_ctx(argc, argv);"
         } else {
             ""
@@ -474,11 +489,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         let fn_idx = wasm::syntax::FuncIdx(i as u32);
         generated_header += &format!(
             "{};\n",
-            print_function_signature(
-                &m,
-                format!("__rwasm_{}_{}", m.names.functions[&fn_idx], fn_idx.0),
-                fn_idx
-            )?
+            print_function_signature(&m, format_func_name(m, &fn_idx), fn_idx)?
         );
     }
 
@@ -534,7 +545,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
     // }
 
     // Generate the `main` function if we are generating a WASI executable
-    if opts.generate_wasi_executable {
+    if opts.generate_wasi_module && !opts.generate_library {
         let exported_start_functions: Vec<_> = exports
             .iter()
             .filter(|e| {
@@ -548,6 +559,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
                 }
             })
             .collect();
+
         if exported_start_functions.len() == 1 {
             let start_func_name = &exported_start_functions[0].name;
             if start_func_name != "_start" {
@@ -557,18 +569,6 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
                      design/application-abi.md#current-unstable-abi).",
                     start_func_name
                 );
-            }
-
-            if opts.generate_as_wasi_library {
-                generated += &format!(
-                    "WasmModule* init_module(i32 argc, Handle argv) {{
-                         WasmModule* ctx = new_wasm_module(argc, argv);
-                         __{}(ctx);
-                         return ctx;
-                     }}",
-                    start_func_name,
-                );
-                dbgprintln!(0, "Generated main WASI library init function");
             } else {
                 generated += &format!(
                     "int main(i32 argc, char** argv) {{
@@ -589,6 +589,18 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
             ));
         }
     }
+
+    // if opts.generate_wasi_module && opts.generate_library {
+    //     generated += &format!(
+    //         "WasmModule* init_module(i32 argc, Handle argv) {{
+    //              WasmModule* ctx = new_wasm_module(argc, argv);
+    //              __{}(ctx);
+    //              return ctx;
+    //          }}",
+    //         start_func_name,
+    //     );
+    //     dbgprintln!(0, "Generated main WASI library init function");
+    // }
 
     // let generated = if opts.panic_early_rather_than_trap {
     //     generated

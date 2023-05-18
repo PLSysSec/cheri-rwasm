@@ -1649,7 +1649,7 @@ fn print_function(
             }
         }
         wasm::syntax::FuncInternals::ImportedFunc { module, name } => {
-            if opts.generate_wasi_executable {
+            if opts.generate_wasi_module {
                 if module != "wasi_snapshot_preview1" {
                     return Err(eyre!(
                         "Unexpected imported module {} when generating WASI executable",
@@ -2226,7 +2226,7 @@ fn print_export(
                     }"
                 .to_string())
             } else {
-                if opts.generate_as_wasi_library {
+                if opts.generate_wasi_module && opts.generate_library {
                     Ok("impl WasmModule {
                             #[allow(dead_code)]
                             pub fn get_memory(&mut self) -> &mut [u8] {
@@ -2290,7 +2290,7 @@ fn print_cargo_toml(opts: &CmdLineOpts) -> Maybe<()> {
         .and_then(|n| n.to_str())
         .map(|n| n.to_lowercase())
         .unwrap_or("wasmmodule".into());
-    let dependencies = if opts.generate_wasi_executable {
+    let dependencies = if opts.generate_wasi_module {
         "\
         wasi-common = \"0.20.0\"\n\
         wiggle = \"0.20.0\"\n\
@@ -2377,7 +2377,7 @@ pub fn get_memory_backing_size(
 }
 
 fn print_generated_code_prefix(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<String> {
-    let module_prefix = if opts.generate_wasi_executable {
+    let module_prefix = if opts.generate_wasi_module {
         // NOTE: We cannot forbid unsafe because wasi-common requires
         // us to implement an unsafe trait. However, this unsafety is
         // restricted _strictly_ to that module. It would be nice if
@@ -2411,7 +2411,7 @@ fn print_generated_code_prefix(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> 
         } else {
             "memory: Vec<u8>".to_string()
         },
-        wasi_context = if opts.generate_wasi_executable {
+        wasi_context = if opts.generate_wasi_module {
             "context: wasi_common::WasiCtx,"
         } else {
             ""
@@ -2577,7 +2577,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
                  Self::try_new().unwrap()
              }}
          }}\n",
-        context = if opts.generate_wasi_executable {
+        context = if opts.generate_wasi_module {
             r#"context: wasi_common::WasiCtx::new(std::env::args())
                   .expect("Unable to initialize WASI context"),"#
         } else {
@@ -2698,7 +2698,7 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
     }
 
     // Generate the `main` function if we are generating a WASI executable
-    if opts.generate_wasi_executable {
+    if opts.generate_wasi_module && !opts.generate_library {
         let exported_start_functions: Vec<_> = exports
             .iter()
             .filter(|e| {
@@ -2721,17 +2721,6 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
                      design/application-abi.md#current-unstable-abi).",
                     start_func_name
                 );
-            }
-            if opts.generate_as_wasi_library {
-                generated += &format!(
-                    "pub fn init_module() -> WasmModule {{
-                         let mut wasm_module = WasmModule::new();
-                         wasm_module.{start_func_name}().unwrap();
-                         wasm_module
-                     }}",
-                    start_func_name = start_func_name,
-                );
-                dbgprintln!(0, "Generated main WASI library init function");
             } else {
                 generated += &format!(
                     "fn main() {{
@@ -2761,6 +2750,18 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
         }
     }
 
+    // if opts.generate_wasi_module && opts.generate_library {
+    //     generated += &format!(
+    //         "pub fn init_module() -> WasmModule {{
+    //              let mut wasm_module = WasmModule::new();
+    //              wasm_module.{start_func_name}().unwrap();
+    //              wasm_module
+    //          }}",
+    //         start_func_name = start_func_name,
+    //     );
+    //     dbgprintln!(0, "Generated main WASI library init function");
+    // }
+
     let generated = if opts.panic_early_rather_than_trap {
         generated
             .replace(")?", ").unwrap()")
@@ -2773,15 +2774,14 @@ pub fn print_module(m: &wasm::syntax::Module, opts: &CmdLineOpts) -> Maybe<()> {
     print_cargo_toml(opts)?;
     let src_dir = opts.output_directory.join("src");
     std::fs::create_dir_all(&src_dir)?;
-    let generated_file_path = src_dir.join(
-        if opts.generate_wasi_executable && !opts.generate_as_wasi_library {
+    let generated_file_path =
+        src_dir.join(if opts.generate_wasi_module && !opts.generate_library {
             "main.rs"
         } else {
             "lib.rs"
-        },
-    );
+        });
     std::fs::write(&generated_file_path, generated)?;
-    if opts.generate_wasi_executable {
+    if opts.generate_wasi_module {
         std::fs::write(
             src_dir.join("guest_mem_wrapper.rs"),
             include_str!("../templates-for-generation/guest_mem_wrapper.rs"),

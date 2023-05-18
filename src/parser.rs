@@ -1078,6 +1078,31 @@ generate! { module -> Module = {
 
     let funcs = imported_funcs.into_iter().chain(internal_funcs.into_iter()).collect();
 
+    // assert either
+    // assert!(imports.len() == 0 || (tables.len() == 0 && globals.len() == 0 && memories.len() == 0));
+    // make sure our imported resources actually exist
+    let mut imported_tables = Vec::new();
+    let mut imported_mems = Vec::new();
+    let mut imported_globals = Vec::new();
+
+    // pub tables: Vec<Table>,
+    // pub mems: Vec<Mem>,
+    // pub globals: Vec<Global>,
+    // TODO: is it right to init these globals to NULL
+    for impt in imports.iter() {
+        println!("Import! {:?}", impt);
+        match impt.desc {
+            ImportDesc::Table(table_typ) => {imported_tables.push(Table{typ: table_typ.clone()})},
+            ImportDesc::Mem(mem_typ) => {imported_mems.push(Mem{typ: mem_typ})},
+            ImportDesc::Global(global_typ) => {imported_globals.push(Global{ typ: global_typ, init: init_to_null()})},
+            ImportDesc::Func(_) => {},// Taken care of by zipping funcsec and codesec above
+        }
+    }
+    // imported tables/mems/globals always come before regular tables/mem/globals
+    // https://github.com/PLSysSec/mswasm-wabt/blob/849ebcd1dfcaf91a5c53a1e94f3ec66aeca57d9f/src/binary-reader.cc#L2382
+    let tables = {imported_tables.extend(tables); imported_tables};
+    let mems = {imported_mems.extend(mems); imported_mems};
+    let globals = {imported_globals.extend(globals); imported_globals};
     // .. and we finally have a module
     Module { types, funcs, tables, mems, globals, elem, data, start, imports, exports, names, linking }
 }}
@@ -1088,4 +1113,10 @@ pub fn parse(opts: ParserOpts, inp: &[u8]) -> Maybe<Module> {
         err!("Found {} trailing bytes in the file", inp.len())
     }
     Ok(m)
+}
+
+fn init_to_null() -> Expr {
+    let mut instrs = Vec::new();
+    instrs.push(Instr::MSWasm(mswasmop::Op::HandleNull));
+    Expr(instrs)
 }

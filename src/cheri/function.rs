@@ -326,7 +326,7 @@ fn print_imported_function(
     name: &String,
     result: &mut String,
 ) -> Maybe<()> {
-    if opts.generate_wasi_executable {
+    if opts.generate_wasi_module {
         if module != "wasi_snapshot_preview1" {
             return Err(eyre!(
                 "Unexpected imported module {} when generating WASI executable",
@@ -386,7 +386,7 @@ pub fn print_function(
     id: wasm::syntax::FuncIdx,
     opts: &CmdLineOpts,
 ) -> Maybe<String> {
-    dbgprintln!(1, "Now working on function {}", id.0);
+    println!("Now working on function {}", id.0);
 
     let f = &m.funcs[id.0 as usize];
 
@@ -397,12 +397,14 @@ pub fn print_function(
 
     let mut result = String::new();
 
+    let name = if !m.names.functions.is_empty() {
+        m.names.functions[&id].clone()
+    } else {
+        m.linking.functions[&id].clone()
+    };
+
     // Argument and result types
-    let signature = print_function_signature(
-        m,
-        format!("__rwasm_{}_{}", m.names.functions[&id], id.0),
-        id,
-    )?;
+    let signature = print_function_signature(m, format!("__rwasm_{}_{}", name, id.0), id)?;
     result += &signature;
 
     dbgprintln!(

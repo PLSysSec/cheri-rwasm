@@ -43,19 +43,24 @@ pub mod syntax {
             pub to: ResultType,
         }
 
+        #[derive(Debug, Clone, Copy)]
         pub struct Limits {
             pub min: u32,
             pub max: Option<u32>,
         }
 
+        #[derive(Debug, Clone, Copy)]
         pub struct MemType(pub Limits);
 
+        #[derive(Debug, Clone, Copy)]
         pub struct TableType(pub Limits, pub ElemType);
+        #[derive(Debug, Clone, Copy)]
         pub enum ElemType {
             // XXX
             FuncRef,
         }
 
+        #[derive(Debug, Clone, Copy)]
         pub struct GlobalType(pub Mut, pub ValType);
         #[derive(Copy, Clone, Debug, PartialEq, Eq)]
         pub enum Mut {
@@ -445,11 +450,13 @@ pub mod syntax {
             pub typ: MemType,
         }
 
+        #[derive(Debug)]
         pub struct Global {
             pub typ: GlobalType,
             pub init: Expr,
         }
 
+        #[derive(Debug)]
         pub struct Elem {
             pub table: TableIdx,
             pub offset: Expr,
@@ -473,22 +480,25 @@ pub mod syntax {
             pub func: FuncIdx,
         }
 
+        #[derive(Debug)]
         pub struct Export {
             pub name: Name,
             pub desc: ExportDesc,
         }
+        #[derive(Debug)]
         pub enum ExportDesc {
             Func(FuncIdx),
             Table(TableIdx),
             Mem(MemIdx),
             Global(GlobalIdx),
         }
-
+        #[derive(Debug)]
         pub struct Import {
             pub module: Name,
             pub name: Name,
             pub desc: ImportDesc,
         }
+        #[derive(Debug)]
         pub enum ImportDesc {
             Func(TypeIdx),
             Table(TableType),
